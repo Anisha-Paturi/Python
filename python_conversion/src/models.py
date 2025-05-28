@@ -104,3 +104,14 @@ class FeedManagerReport:
         # Execute the SQL query using the provided db_session
         result = db_session.execute(self.sql)
         return result.fetchall()
+
+def find_user_by_username(db, username):
+    """
+    Find a user in the logins table by username.
+    Returns a dictionary of user data or None if not found.
+    """
+    sql = text("SELECT * FROM logins WHERE name = :username")
+    result = db.session.execute(sql, {'username': username}).fetchone()
+    if result:
+        return dict(result)
+    return None
