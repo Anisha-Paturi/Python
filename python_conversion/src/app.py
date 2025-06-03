@@ -5,13 +5,17 @@ import hashlib
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, redirect, url_for, abort, send_file, current_app
 from flask_sqlalchemy import SQLAlchemy
-from src.extensions import db
-from src.models import find_user_by_username
-from python_conversion.src.api.common.token_filter import token_required, generate_token, refresh_token
-from python_conversion.src.test_responder_data import test_bp
-from src.models import get_dashboard_index_stats, get_dashboard_newdemos_states, get_reports_responder_file_data, FeedManagerReport
+from .extensions import db
+from .models import find_user_by_username
+from .api.common.token_filter import token_required, generate_token, refresh_token
+from .test_responder_data import test_bp
+from .models import get_dashboard_index_stats, get_dashboard_newdemos_states, get_reports_responder_file_data, FeedManagerReport
 
 app = Flask(__name__)
+
+class UserObj:
+    def __init__(self, d):
+        self.__dict__ = d
 
 # Load config from YAML
 config_path = os.path.join(os.path.dirname(__file__), 'config.yml')
@@ -25,7 +29,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://londen:FuseMind2024@db2204
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize SQLAlchemy
-# db.init_app(app)
+db.init_app(app)
 
 # Register the global after_request handler for token refresh
 refresh_token(app)
@@ -43,17 +47,18 @@ def login():
     if not name or not password:
         return jsonify({"error": "Name and password required"}), 400
 
-    user = find_user_by_username(name)
+    user = find_user_by_username(db, name)
     if user:
-        print("Stored password hash:", user.password)
+        print("Stored password hash:", user['password'])
     else:
         print("User not found")
 
     # Hash the received password before comparison
     hashed_password = hashlib.md5(password.encode()).hexdigest()
 
-    if user and user.password == hashed_password:
-        token = generate_token(app, user)
+    if user and user['password'] == hashed_password:
+        user_obj = UserObj(user)
+        token = generate_token(app, user_obj)
         return jsonify({"message": "Login successful", "token": token})
     else:
         print("Password mismatch or user not found")
@@ -127,7 +132,7 @@ def dashboard_responderFile(current_user):
 def feed_manager_report(current_user):
     report = FeedManagerReport.factory()
     results = report.execute(db.session)
-    data = [dict(row) for row in results]
+    data = [dict(row._mapping) for row in results]
     return jsonify(data)
 
 app.register_blueprint(test_bp)

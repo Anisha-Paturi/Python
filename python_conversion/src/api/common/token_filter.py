@@ -2,7 +2,12 @@ from flask import request, jsonify
 import jwt
 import datetime
 from functools import wraps
-from login_backend_python.models import find_user_by_username
+from ...models import find_user_by_username
+from ...extensions import db
+
+class UserObj:
+    def __init__(self, d):
+        self.__dict__ = d
 
 # JSON schema for token response
 def token_response_schema(username, token):
@@ -33,16 +38,17 @@ def token_required(app):
             try:
                 # Decode the token
                 data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-                current_user = find_user_by_username(data['name'])
+                current_user = find_user_by_username(db, data['name'])
 
                 if not current_user:
                     return jsonify({'error': 'User not found!'}), 401
 
-                kwargs['current_user'] = current_user
+                current_user_obj = UserObj(current_user)
+                kwargs['current_user'] = current_user_obj
 
                 # Generate new token with 5-minute expiry
                 new_payload = {
-                    'name': current_user.name,
+                    'name': current_user_obj.name,
                     'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
                 }
                 new_token = jwt.encode(new_payload, app.config['SECRET_KEY'], algorithm="HS256")
@@ -111,10 +117,11 @@ def refresh_token(app):
             token = request.headers.get('x-auth-token', None)
             if token:
                 data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-                current_user = find_user_by_username(data['name'])
+                current_user = find_user_by_username(db, data['name'])
                 if current_user:
+                    current_user_obj = UserObj(current_user)
                     new_payload = {
-                        'name': current_user.name,
+                        'name': current_user_obj.name,
                         'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
                     }
                     new_token = jwt.encode(new_payload, app.config['SECRET_KEY'], algorithm="HS256")

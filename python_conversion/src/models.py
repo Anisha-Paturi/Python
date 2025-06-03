@@ -84,6 +84,8 @@ class FeedManagerReport:
             return "'{}'".format(value.replace("'", "''"))
         return str(value)
 
+    from sqlalchemy import text
+
     @classmethod
     def factory(cls, date_from=None, date_to=None):
         sql = """
@@ -98,7 +100,7 @@ class FeedManagerReport:
             date_from_quoted = cls.db_quote(date_from)
             sql += " WHERE downloaded_at BETWEEN {} AND {}".format(date_from_quoted, date_to_quoted)
 
-        return cls(sql)
+        return cls(text(sql))
 
     def execute(self, db_session):
         # Execute the SQL query using the provided db_session
@@ -113,5 +115,5 @@ def find_user_by_username(db, username):
     sql = text("SELECT * FROM logins WHERE name = :username")
     result = db.session.execute(sql, {'username': username}).fetchone()
     if result:
-        return dict(result)
+        return dict(result._mapping)
     return None

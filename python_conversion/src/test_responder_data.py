@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from login_backend_python.extensions import db
+from .extensions import db
 from sqlalchemy import text
 
 test_bp = Blueprint('test', __name__)
